@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Calendar Task Board (PH)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="th-white">
+<header class="panel top">
+  <div>
+    <h1>🗓️ Smart Calendar Task Board</h1>
+    <p class="sub">Philippine calendar · click a date to open its sticky-note board</p>
+    <div class="row">
+      <button class="mini" id="btnExport">⬇ Export Backup</button>
+      <button class="mini" id="btnImport">⬆ Import Backup</button>
+      <input type="file" id="fileImport" accept=".json" hidden>
+    </div>
+  </div>
+  <div class="row">
+    <span class="sub">Theme:</span>
+    <button class="sw" data-th="white" style="background:#fff" title="Classic White"></button>
+    <button class="sw" data-th="dark" style="background:#0f172a" title="Dark"></button>
+    <button class="sw" data-th="pink" style="background:#f9a8d4" title="Pink"></button>
+    <button class="sw" data-th="cepalco" style="background:linear-gradient(#000 50%,#facc15 50%)" title="CEPALCO"></button>
+    <div class="stat"><b id="sActive">0</b>Active</div>
+    <div class="stat ok"><b id="sDone">0</b>Done</div>
+    <div class="stat bad"><b id="sOver">0</b>Overdue</div>
+  </div>
+</header>
+
+<main class="panel cal">
+  <div class="calbar">
+    <button class="btn" id="prev">‹</button>
+    <h2 id="monthTitle"></h2>
+    <button class="btn" id="next">›</button>
+    <button class="btn pri" id="goToday">Today</button>
+  </div>
+  <div class="grid head"><span class="red">Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+  <div class="grid" id="days"></div>
+  <p class="sub legend"><i class="dot hol"></i> Holiday (common PH list — confirm with official proclamations) · <i class="dot tdy"></i> Today (Manila time)</p>
+</main>
+
+<div id="modal" class="overlay" hidden>
+  <div class="panel board">
+    <div class="bhead">
+      <div><h2 id="bTitle"></h2><div id="bHol" class="holtag"></div></div>
+      <button class="x" id="bClose" title="Close (Esc)">×</button>
+    </div>
+    <div class="tabs">
+      <button data-v="board" class="on">📋 Board</button>
+      <button data-v="done">✅ Completed <span id="cDone">0</span></button>
+      <button data-v="trash">🗑 Trash <span id="cTrash">0</span></button>
+    </div>
+    <div id="bBody"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
