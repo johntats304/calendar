@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Users · Smart Calendar Task Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>table{width:100%;border-collapse:collapse;font-size:.8rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}
+th{font-size:.65rem;text-transform:uppercase;opacity:.6}.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:center}
+.tag{font-size:.65rem;font-weight:800;border-radius:6px;padding:2px 7px;background:var(--soft);border:1px solid var(--bd)}.warn{background:#fef3c7;color:#78350f;border-radius:12px;padding:10px;font-size:.8rem;font-weight:700;margin-bottom:12px}</style></head>
+<body class="th-white">
+<header class="panel top"><div><h1>👥 Manage Users</h1><p class="sub">Admin only · create, edit, disable and delete accounts</p></div>
+<div class="row"><a class="btn" href="index.html" style="text-decoration:none;color:inherit">← Back to calendar</a><button class="btn" onclick="logout()">Log out</button></div></header>
+<main class="panel">
+  <div id="warn" class="warn" hidden>⚠️ You are still using the default admin password. Edit the admin account below and set a new one.</div>
+  <h3 id="ft">Add user</h3>
+  <form id="f" class="fm" style="margin:10px 0 16px">
+    <input id="fu" placeholder="Username" required pattern="[A-Za-z0-9_.\-]{3,30}" title="3–30 letters, numbers, . _ -">
+    <input id="fn" placeholder="Display name">
+    <input id="fp" type="password" placeholder="Password" autocomplete="new-password">
+    <select id="fr"><option value="user">User</option><option value="admin">Admin</option></select>
+    <label style="font-size:.8rem;font-weight:700"><input type="checkbox" id="fa" checked> Active</label>
+    <div class="row" style="margin:0"><button class="btn pri" type="submit" id="fs">＋ Add</button><button class="btn" type="button" id="fc" hidden>Cancel</button></div>
+  </form>
+  <div style="overflow-x:auto"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+</main>
+<div id="toast"></div>
+<script src="auth.js"></script>
+<script>
+const $=s=>document.querySelector(s);let ME,editId=null;
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),2800)};
+const admins=()=>getUsers().filter(u=>u.role==='admin'&&u.active).length;
+function render(){
+  const us=getUsers();$('#warn').hidden=!us.some(u=>u.id===ME.id&&u.mustChange);
+  $('#tb').innerHTML=us.map(u=>`<tr><td><b>${esc(u.username)}</b>${u.id===ME.id?' <span class="tag">you</span>':''}</td><td>${esc(u.name)}</td>
+  <td><span class="tag">${u.role}</span></td><td>${u.active?'🟢 Active':'⚪ Disabled'}</td><td>${u.created||''}</td>
+  <td><button class="mini" data-e="${u.id}">✏️ Edit</button> <button class="mini" data-d="${u.id}">🗑 Delete</button></td></tr>`).join('');
+}
+function reset(){editId=null;$('#f').reset();$('#fa').checked=true;$('#fu').disabled=false;$('#fp').required=true;$('#fp').placeholder='Password';$('#ft').textContent='Add user';$('#fs').textContent='＋ Add';$('#fc').hidden=true}
+$('#fc').onclick=reset;
+$('#tb').onclick=e=>{
+  const us=getUsers(),eb=e.target.closest('[data-e]'),db=e.target.closest('[data-d]');
+  if(eb){const u=us.find(x=>x.id===eb.dataset.e);editId=u.id;$('#fu').value=u.username;$('#fu').disabled=true;$('#fn').value=u.name;$('#fp').value='';
+    $('#fp').required=false;$('#fp').placeholder='New password (blank = keep)';$('#fr').value=u.role;$('#fa').checked=u.active;
+    $('#ft').textContent='Edit '+u.username;$('#fs').textContent='💾 Save';$('#fc').hidden=false;scrollTo({top:0,behavior:'smooth'})}
+  if(db){const u=us.find(x=>x.id===db.dataset.d);
+    if(u.id===ME.id)return toast("You can't delete your own account.");
+    if(u.role==='admin'&&u.active&&admins()<2)return toast('Keep at least one active admin.');
+    if(!confirm(`Delete user "${u.username}"? Their saved tasks stay in this browser but become unreachable.`))return;
+    saveUsers(us.filter(x=>x.id!==u.id));localStorage.removeItem('smart_calendar_taskboard_v1_'+u.id);toast('User deleted');render()}
+};
+$('#f').onsubmit=async e=>{
+  e.preventDefault();const us=getUsers(),role=$('#fr').value,active=$('#fa').checked,pw=$('#fp').value;
+  if(pw&&pw.length<6)return toast('Password must be at least 6 characters.');
+  if(editId){const u=us.find(x=>x.id===editId);
+    if(u.role==='admin'&&u.active&&(role!=='admin'||!active)&&admins()<2)return toast('Keep at least one active admin.');
+    if(u.id===ME.id&&!active)return toast("You can't disable your own account.");
+    u.name=$('#fn').value.trim()||u.username;u.role=role;u.active=active;
+    if(pw){u.salt=rid();u.hash=await hashPw(pw,u.salt);delete u.mustChange}
+    saveUsers(us);toast('User updated')}
+  else{const un=$('#fu').value.trim().toLowerCase();
+    if(us.some(x=>x.username===un))return toast('Username already exists.');
+    if(pw.length<6)return toast('Password must be at least 6 characters.');
+    const u=await makeUser(un,$('#fn').value,pw,role);u.active=active;us.push(u);saveUsers(us);toast('User added')}
+  reset();render();
+};
+(async()=>{await ensureAdmin();ME=currentUser();
+  if(!ME)return location.replace('login.html');
+  if(ME.role!=='admin')return location.replace('index.html');
+  render()})();
+</script></body></html>

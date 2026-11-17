@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="th-white">
+<script src="auth.js"></script>
+<script>if(!currentUser())location.replace("login.html")</script>
 <header class="panel top">
   <div>
     <h1>🗓️ Smart Calendar Task Board</h1>
@@ -21,6 +23,7 @@
     </div>
   </div>
   <div class="row">
+    <span class="stat" id="who"></span><a class="mini" id="usersLink" href="users.html" hidden style="text-decoration:none">👥 Users</a><button class="mini" onclick="logout()">⎋ Log out</button>
     <span class="sub">Theme:</span>
     <button class="sw" data-th="white" style="background:#fff" title="Classic White"></button>
     <button class="sw" data-th="dark" style="background:#0f172a" title="Dark"></button>

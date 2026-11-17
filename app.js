@@ -1,4 +1,6 @@
-const $=s=>document.querySelector(s),K='smart_calendar_taskboard_v1';
+const $=s=>document.querySelector(s),ME=currentUser()||{id:'none',role:'user'};
+const K='smart_calendar_taskboard_v1_'+ME.id; // each user has their own boards
+if(ME.id==='u_admin'&&!localStorage.getItem(K)&&localStorage.getItem('smart_calendar_taskboard_v1'))localStorage.setItem(K,localStorage.getItem('smart_calendar_taskboard_v1'));
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const COLORS={Now:['#cbfec9','#ebd3ff','#dfc3ff'],Next:['#fff3a1','#c3e2ff'],Later:['#ffd1ea','#cbfec9']};
 let S;try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
@@ -159,11 +161,13 @@ $('#btnExport').onclick=()=>{const a=document.createElement('a');
   a.download=`Calendar_Taskboard_Backup_${todayStr()}.json`;a.click();toast('Backup saved')};
 $('#btnImport').onclick=()=>$('#fileImport').click();
 $('#fileImport').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const p=JSON.parse(r.result);if(!Array.isArray(p.tasks))throw 0;S=p;save();setTheme(S.theme||'white');renderCal();toast('Backup imported')}catch(x){toast('Invalid backup file')}};
+  r.onload=()=>{try{const p=JSON.parse(r.result);if(!Array.isArray(p.tasks))throw 0;S=p;save();$('#who').innerHTML=`<b style="font-size:.75rem">${esc(ME.name||ME.username)}</b>${ME.role}`;$('#usersLink').hidden=ME.role!=='admin';
+setTheme(S.theme||'white');renderCal();toast('Backup imported')}catch(x){toast('Invalid backup file')}};
   r.readAsText(f);e.target.value=''};
 
 /* ---------- first run: sample tasks on today's date ---------- */
-if(!S.tasks.length){const d=todayStr();
+if(ME.role==='admin'&&!S.tasks.length&&!S.seeded){S.seeded=1;const d=todayStr();
   S.tasks=[['Call ricardo magsacay','Discuss pending collections','Now','#ebd3ff'],['Send follow-up emails','Contact all billing addresses','Next','#c3e2ff'],['Update contact list','Sync files to cloud','Later','#ffd1ea']]
   .map((x,i)=>({id:'seed'+i,date:d,title:x[0],description:x[1],priority:x[2],status:'active',pinned:false,favorite:false,color:x[3],created:d}));save()}
+$('#who').innerHTML=`<b style="font-size:.75rem">${esc(ME.name||ME.username)}</b>${ME.role}`;$('#usersLink').hidden=ME.role!=='admin';
 setTheme(S.theme||'white');renderCal();
