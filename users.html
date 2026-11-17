@@ -8,7 +8,7 @@ th{font-size:.65rem;text-transform:uppercase;opacity:.6}.fm{display:grid;grid-te
 .tag{font-size:.65rem;font-weight:800;border-radius:6px;padding:2px 7px;background:var(--soft);border:1px solid var(--bd)}.warn{background:#fef3c7;color:#78350f;border-radius:12px;padding:10px;font-size:.8rem;font-weight:700;margin-bottom:12px}</style></head>
 <body class="th-white">
 <header class="panel top"><div><h1>👥 Manage Users</h1><p class="sub">Admin only · create, edit, disable and delete accounts</p></div>
-<div class="row"><a class="btn" href="index.html" style="text-decoration:none;color:inherit">← Back to calendar</a><button class="btn" onclick="logout()">Log out</button></div></header>
+<div class="row"><a class="btn" href="index.html" style="text-decoration:none;color:inherit">← Back to calendar</a><button class="btn" id="bx">⬇ Export Backup</button><button class="btn" id="bi">⬆ Import Backup</button><input type="file" id="bf" accept=".json" hidden><button class="btn" onclick="logout()">Log out</button></div></header>
 <main class="panel">
   <div id="warn" class="warn" hidden>⚠️ You are still using the default admin password. Edit the admin account below and set a new one.</div>
   <h3 id="ft">Add user</h3>
@@ -63,6 +63,22 @@ $('#f').onsubmit=async e=>{
     const u=await makeUser(un,$('#fn').value,pw,role);u.active=active;us.push(u);saveUsers(us);toast('User added')}
   reset();render();
 };
+const BK='smart_calendar_taskboard_v1_';
+$('#bx').onclick=()=>{const data={};getUsers().forEach(u=>{try{const d=JSON.parse(localStorage.getItem(BK+u.id));if(d)data[u.id]=d}catch(e){}});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),users:getUsers(),data},null,2)],{type:'application/json'}));
+  a.download='Taskboard_Full_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Full backup saved (all users + boards)')};
+$('#bi').onclick=()=>$('#bf').click();
+$('#bf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const p=JSON.parse(r.result);
+    if(p.version===2&&Array.isArray(p.users)&&p.users.some(u=>u.role==='admin'&&u.active)){
+      if(!confirm('Restore this backup? It REPLACES all current users and boards.'))return;
+      getUsers().forEach(u=>localStorage.removeItem(BK+u.id));
+      saveUsers(p.users);Object.entries(p.data||{}).forEach(([id,d])=>localStorage.setItem(BK+id,JSON.stringify(d)));
+      toast('Backup restored');if(!currentUser())return logout();render()}
+    else if(Array.isArray(p.tasks)){
+      if(!confirm('This is a single-board backup. Replace YOUR admin board with it?'))return;
+      localStorage.setItem(BK+ME.id,JSON.stringify(p));toast('Your board was restored')}
+    else throw 0}catch(x){toast('Invalid backup file')}};r.readAsText(f)};
 (async()=>{await ensureAdmin();ME=currentUser();
   if(!ME)return location.replace('login.html');
   if(ME.role!=='admin')return location.replace('index.html');

@@ -153,17 +153,9 @@ function wireDrag(){
   });
 }
 
-/* ---------- themes & backup ---------- */
+/* ---------- themes ---------- */
 function setTheme(t){S.theme=t;document.body.className='th-'+t;save()}
 document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>setTheme(b.dataset.th));
-$('#btnExport').onclick=()=>{const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));
-  a.download=`Calendar_Taskboard_Backup_${todayStr()}.json`;a.click();toast('Backup saved')};
-$('#btnImport').onclick=()=>$('#fileImport').click();
-$('#fileImport').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const p=JSON.parse(r.result);if(!Array.isArray(p.tasks))throw 0;S=p;save();$('#who').innerHTML=`<b style="font-size:.75rem">${esc(ME.name||ME.username)}</b>${ME.role}`;$('#usersLink').hidden=ME.role!=='admin';
-setTheme(S.theme||'white');renderCal();toast('Backup imported')}catch(x){toast('Invalid backup file')}};
-  r.readAsText(f);e.target.value=''};
 
 /* ---------- first run: sample tasks on today's date ---------- */
 if(ME.role==='admin'&&!S.tasks.length&&!S.seeded){S.seeded=1;const d=todayStr();
