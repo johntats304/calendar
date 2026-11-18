@@ -1,4 +1,8 @@
 # Smart Calendar Task Board (PH)
-Static site, no build step. Deploy: Netlify > Add new site > Deploy manually > drag this folder (or the zip's contents).
-Login: default admin is `admin` / `admin123` (change it in Users). Admins manage accounts at users.html. Each user has separate boards.
-NOTE: accounts and data live in each browser (localStorage) — this is a convenience lock, not server-side security. Use Export/Import Backup to move data.
+Calendar + per-date sticky-note boards, login, and admin user management.
+Accounts and boards are stored on Netlify (Functions + Blobs), so every PC sees the same data.
+
+## Deploy (must be Git or CLI — plain drag-and-drop does not install the function's dependency)
+1. Push this folder to a GitHub repo, then Netlify > Add new site > Import from Git (no build command, publish dir `.`).
+   OR: `npm i -g netlify-cli && npm install && netlify deploy --prod`
+2. Open the site and log in with the default admin account, then change its password in Users.

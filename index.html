@@ -11,7 +11,7 @@
 </head>
 <body class="th-white">
 <script src="auth.js"></script>
-<script>if(!currentUser())location.replace("login.html")</script>
+<script>if(!localStorage.getItem(TK))location.replace("login.html")</script>
 <header class="panel top">
   <div>
     <h1>🗓️ Smart Calendar Task Board</h1>

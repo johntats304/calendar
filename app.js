@@ -1,11 +1,9 @@
-const $=s=>document.querySelector(s),ME=currentUser()||{id:'none',role:'user'};
-const K='smart_calendar_taskboard_v1_'+ME.id; // each user has their own boards
-if(ME.id==='u_admin'&&!localStorage.getItem(K)&&localStorage.getItem('smart_calendar_taskboard_v1'))localStorage.setItem(K,localStorage.getItem('smart_calendar_taskboard_v1'));
+const $=s=>document.querySelector(s);
+let ME={id:'none',role:'user'};
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const COLORS={Now:['#cbfec9','#ebd3ff','#dfc3ff'],Next:['#fff3a1','#c3e2ff'],Later:['#ffd1ea','#cbfec9']};
-let S;try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
-S=S||{tasks:[],theme:'white'};
-const save=()=>localStorage.setItem(K,JSON.stringify(S));
+let S={tasks:[],theme:'white'},saveT;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>api('/api/board','PUT',S).catch(e=>{if(e.status===401)location.replace('login.html');else toast('⚠️ Not saved: '+e.message)}),350)}
 const pad=n=>String(n).padStart(2,'0');
 const key=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 const todayStr=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date());
@@ -157,9 +155,15 @@ function wireDrag(){
 function setTheme(t){S.theme=t;document.body.className='th-'+t;save()}
 document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>setTheme(b.dataset.th));
 
-/* ---------- first run: sample tasks on today's date ---------- */
-if(ME.role==='admin'&&!S.tasks.length&&!S.seeded){S.seeded=1;const d=todayStr();
-  S.tasks=[['Call ricardo magsacay','Discuss pending collections','Now','#ebd3ff'],['Send follow-up emails','Contact all billing addresses','Next','#c3e2ff'],['Update contact list','Sync files to cloud','Later','#ffd1ea']]
-  .map((x,i)=>({id:'seed'+i,date:d,title:x[0],description:x[1],priority:x[2],status:'active',pinned:false,favorite:false,color:x[3],created:d}));save()}
-$('#who').innerHTML=`<b style="font-size:.75rem">${esc(ME.name||ME.username)}</b>${ME.role}`;$('#usersLink').hidden=ME.role!=='admin';
-setTheme(S.theme||'white');renderCal();
+/* ---------- boot: load this user's board from the server ---------- */
+(async()=>{
+  const m=await currentUser();if(!m)return location.replace('login.html');
+  ME=m.user;S=m.board||{tasks:[],theme:'white'};
+  const old=localStorage.getItem('smart_calendar_taskboard_v1_u_admin'); // one-time import of pre-server admin data
+  if(ME.role==='admin'&&!S.tasks.length&&!S.seeded&&old){try{S=JSON.parse(old);S.seeded=1;save()}catch(e){}}
+  if(ME.role==='admin'&&!S.tasks.length&&!S.seeded){S.seeded=1;const d=todayStr();
+    S.tasks=[['Call ricardo magsacay','Discuss pending collections','Now','#ebd3ff'],['Send follow-up emails','Contact all billing addresses','Next','#c3e2ff'],['Update contact list','Sync files to cloud','Later','#ffd1ea']]
+    .map((x,i)=>({id:'seed'+i,date:d,title:x[0],description:x[1],priority:x[2],status:'active',pinned:false,favorite:false,color:x[3],created:d}));save()}
+  $('#who').innerHTML=`<b style="font-size:.75rem">${esc(ME.name||ME.username)}</b>${ME.role}`;$('#usersLink').hidden=ME.role!=='admin';
+  setTheme(S.theme||'white');renderCal();
+})();

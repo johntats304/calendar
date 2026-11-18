@@ -14,13 +14,12 @@
 <script src="auth.js"></script>
 <script>
 (async()=>{
-  await ensureAdmin();
-  if(currentUser())return location.replace('index.html');
+  if(localStorage.getItem(TK)&&await currentUser())return location.replace('index.html');
+  const btn=document.querySelector('button');
   document.getElementById('f').onsubmit=async e=>{
-    e.preventDefault();
-    const u=await login(document.getElementById('u').value,document.getElementById('p').value);
-    if(u)location.href='index.html';
-    else document.getElementById('err').textContent='Wrong username or password, or account disabled.';
+    e.preventDefault();btn.disabled=true;btn.textContent='Logging in…';
+    try{await login(document.getElementById('u').value,document.getElementById('p').value);location.href='index.html'}
+    catch(x){document.getElementById('err').textContent=x.status===401?x.message:'Cannot reach the server: '+x.message+' (is the site deployed with Netlify Functions?)';btn.disabled=false;btn.textContent='Log in'}
   };
 })();
 </script></body></html>

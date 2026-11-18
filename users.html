@@ -25,62 +25,48 @@ th{font-size:.65rem;text-transform:uppercase;opacity:.6}.fm{display:grid;grid-te
 <div id="toast"></div>
 <script src="auth.js"></script>
 <script>
-const $=s=>document.querySelector(s);let ME,editId=null;
+const $=s=>document.querySelector(s);let ME,editId=null,US=[];
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),2800)};
-const admins=()=>getUsers().filter(u=>u.role==='admin'&&u.active).length;
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),3000)};
+const fail=x=>{if(x.status===401)location.replace('login.html');else toast(x.message)};
+async function load(){try{US=(await api('/api/users')).users;render()}catch(x){fail(x)}}
 function render(){
-  const us=getUsers();$('#warn').hidden=!us.some(u=>u.id===ME.id&&u.mustChange);
-  $('#tb').innerHTML=us.map(u=>`<tr><td><b>${esc(u.username)}</b>${u.id===ME.id?' <span class="tag">you</span>':''}</td><td>${esc(u.name)}</td>
+  $('#warn').hidden=!US.some(u=>u.id===ME.id&&u.mustChange);
+  $('#tb').innerHTML=US.map(u=>`<tr><td><b>${esc(u.username)}</b>${u.id===ME.id?' <span class="tag">you</span>':''}</td><td>${esc(u.name)}</td>
   <td><span class="tag">${u.role}</span></td><td>${u.active?'🟢 Active':'⚪ Disabled'}</td><td>${u.created||''}</td>
   <td><button class="mini" data-e="${u.id}">✏️ Edit</button> <button class="mini" data-d="${u.id}">🗑 Delete</button></td></tr>`).join('');
 }
 function reset(){editId=null;$('#f').reset();$('#fa').checked=true;$('#fu').disabled=false;$('#fp').required=true;$('#fp').placeholder='Password';$('#ft').textContent='Add user';$('#fs').textContent='＋ Add';$('#fc').hidden=true}
 $('#fc').onclick=reset;
-$('#tb').onclick=e=>{
-  const us=getUsers(),eb=e.target.closest('[data-e]'),db=e.target.closest('[data-d]');
-  if(eb){const u=us.find(x=>x.id===eb.dataset.e);editId=u.id;$('#fu').value=u.username;$('#fu').disabled=true;$('#fn').value=u.name;$('#fp').value='';
+$('#tb').onclick=async e=>{
+  const eb=e.target.closest('[data-e]'),db=e.target.closest('[data-d]');
+  if(eb){const u=US.find(x=>x.id===eb.dataset.e);editId=u.id;$('#fu').value=u.username;$('#fu').disabled=true;$('#fn').value=u.name;$('#fp').value='';
     $('#fp').required=false;$('#fp').placeholder='New password (blank = keep)';$('#fr').value=u.role;$('#fa').checked=u.active;
     $('#ft').textContent='Edit '+u.username;$('#fs').textContent='💾 Save';$('#fc').hidden=false;scrollTo({top:0,behavior:'smooth'})}
-  if(db){const u=us.find(x=>x.id===db.dataset.d);
-    if(u.id===ME.id)return toast("You can't delete your own account.");
-    if(u.role==='admin'&&u.active&&admins()<2)return toast('Keep at least one active admin.');
-    if(!confirm(`Delete user "${u.username}"? Their saved tasks stay in this browser but become unreachable.`))return;
-    saveUsers(us.filter(x=>x.id!==u.id));localStorage.removeItem('smart_calendar_taskboard_v1_'+u.id);toast('User deleted');render()}
+  if(db){const u=US.find(x=>x.id===db.dataset.d);
+    if(!confirm(`Delete user "${u.username}" and their boards?`))return;
+    try{await api('/api/users/'+u.id,'DELETE');toast('User deleted');load()}catch(x){fail(x)}}
 };
 $('#f').onsubmit=async e=>{
-  e.preventDefault();const us=getUsers(),role=$('#fr').value,active=$('#fa').checked,pw=$('#fp').value;
+  e.preventDefault();const pw=$('#fp').value;
   if(pw&&pw.length<6)return toast('Password must be at least 6 characters.');
-  if(editId){const u=us.find(x=>x.id===editId);
-    if(u.role==='admin'&&u.active&&(role!=='admin'||!active)&&admins()<2)return toast('Keep at least one active admin.');
-    if(u.id===ME.id&&!active)return toast("You can't disable your own account.");
-    u.name=$('#fn').value.trim()||u.username;u.role=role;u.active=active;
-    if(pw){u.salt=rid();u.hash=await hashPw(pw,u.salt);delete u.mustChange}
-    saveUsers(us);toast('User updated')}
-  else{const un=$('#fu').value.trim().toLowerCase();
-    if(us.some(x=>x.username===un))return toast('Username already exists.');
-    if(pw.length<6)return toast('Password must be at least 6 characters.');
-    const u=await makeUser(un,$('#fn').value,pw,role);u.active=active;us.push(u);saveUsers(us);toast('User added')}
-  reset();render();
+  const b={name:$('#fn').value,role:$('#fr').value,active:$('#fa').checked};
+  try{
+    if(editId){if(pw)b.password=pw;await api('/api/users/'+editId,'PUT',b);toast('User updated')}
+    else{b.username=$('#fu').value;b.password=pw;await api('/api/users','POST',b);toast('User added')}
+    reset();load();
+  }catch(x){fail(x)}
 };
-const BK='smart_calendar_taskboard_v1_';
-$('#bx').onclick=()=>{const data={};getUsers().forEach(u=>{try{const d=JSON.parse(localStorage.getItem(BK+u.id));if(d)data[u.id]=d}catch(e){}});
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),users:getUsers(),data},null,2)],{type:'application/json'}));
-  a.download='Taskboard_Full_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Full backup saved (all users + boards)')};
+$('#bx').onclick=async()=>{try{const d=await api('/api/backup');const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download='Taskboard_Full_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Full backup saved (all users + boards)')}catch(x){fail(x)}};
 $('#bi').onclick=()=>$('#bf').click();
 $('#bf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const p=JSON.parse(r.result);
-    if(p.version===2&&Array.isArray(p.users)&&p.users.some(u=>u.role==='admin'&&u.active)){
-      if(!confirm('Restore this backup? It REPLACES all current users and boards.'))return;
-      getUsers().forEach(u=>localStorage.removeItem(BK+u.id));
-      saveUsers(p.users);Object.entries(p.data||{}).forEach(([id,d])=>localStorage.setItem(BK+id,JSON.stringify(d)));
-      toast('Backup restored');if(!currentUser())return logout();render()}
-    else if(Array.isArray(p.tasks)){
-      if(!confirm('This is a single-board backup. Replace YOUR admin board with it?'))return;
-      localStorage.setItem(BK+ME.id,JSON.stringify(p));toast('Your board was restored')}
-    else throw 0}catch(x){toast('Invalid backup file')}};r.readAsText(f)};
-(async()=>{await ensureAdmin();ME=currentUser();
-  if(!ME)return location.replace('login.html');
-  if(ME.role!=='admin')return location.replace('index.html');
-  render()})();
+  r.onload=async()=>{try{const p=JSON.parse(r.result);
+    if(!confirm('Restore this backup? It REPLACES all current users and boards.'))return;
+    await api('/api/backup','POST',p);toast('Backup restored');ME=(await currentUser())?.user;if(!ME)return logout();load()}
+    catch(x){toast(x instanceof SyntaxError?'Invalid backup file':x.message)}};r.readAsText(f)};
+(async()=>{const m=await currentUser();
+  if(!m)return location.replace('login.html');
+  ME=m.user;if(ME.role!=='admin')return location.replace('index.html');load()})();
 </script></body></html>
